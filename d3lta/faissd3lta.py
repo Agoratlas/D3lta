@@ -175,11 +175,11 @@ def preprocess_text(
 
 
 @timeit
-def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int = 30):
+def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int = 30, target_column: str = "original"):
     """
     Create new columns of preprocessed texts from original text for distance comparison with 3 delta method
     Args:
-        dataset (Union[pd.Series, pd.DataFrame]): dataframe or series containing a column "original" with the text. Optional: a column "language" can be given, otherwise language detection is implemented.
+        dataset (Union[pd.Series, pd.DataFrame]): dataframe or series containing text to be analyzed in column target_column ("original" by default). Optional: a column "language" can be given, otherwise language detection is implemented.
         min_size_txt (Optional[int], optional): size of text that should'nt taken into account for duplicate content because too small. If set to None, no text is removed. Defaults to {default_min_size}.
     Returns:
         dataset (pd.DataFrame): The same input dataset with new columns added (text_grapheme, text_to_embed, text_language_detect), containing the preprocessed texts for 3 delta method.
@@ -198,19 +198,21 @@ def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int =
 
     if isinstance(dataset, pd.DataFrame):
         assert (
-            "original" in dataset.columns
-        ), "when dataset is a pd.DataFrame, it must have a column named 'original'"
+            target_column in dataset.columns
+        ), f"Target column '{target_column}' not found in the dataset"
 
     if isinstance(dataset, pd.Series):
-        dataset = dataset.to_frame("original")
+        dataset = dataset.to_frame(target_column)
 
     # text_grapheme is used for grapheme distance (Levenshtein)
     # this is the cleanest version with no spaces
+    """
     if "text_grapheme" not in dataset.columns:
+        t0 = time.time()
         dataset["text_grapheme"] = [
             t.replace(" ", "")
             for t in preprocess_text(
-                dataset["original"],
+                dataset[target_column],
                 lower=True,
                 remove_accents=True,
                 remove_urls=True,
@@ -222,29 +224,35 @@ def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int =
                 remove_punctuation=True,
             )
         ]
-
+        print(f"Preprocessing text_grapheme took {time.time() - t0:.2f} seconds")
+    """
     # text_to_embed is used for semantic distance and embedded with USE
     # links are removed
     if "text_to_embed" not in dataset.columns:
+        t0 = time.time()
         dataset["text_to_embed"] = preprocess_text(
-            dataset["original"],
-            lower=False,
-            remove_accents=False,
+            dataset[target_column],
+            lower=True,
+            remove_accents=True,
             remove_urls=True,
             remove_mentions=True,
-            remove_emojis=False,
-            remove_hashtags_frontend=False,
-            remove_twitter_cropend=False,
-            replace_newline_characters=False,
-            remove_punctuation=False,
+            remove_emojis=True,
+            remove_hashtags_frontend=True,
+            remove_twitter_cropend=True,
+            replace_newline_characters=True,
+            remove_punctuation=True,
         )
+        print(f"Preprocessing text_to_embed took {time.time() - t0:.2f} seconds")
+    
+    0/0
     # text_language_detect is used for fasttext
     # accents and emojis are kept as they provide interesting cues to language
     if ("language" not in dataset.columns) or (
         "text_language_detect" not in dataset.columns
     ):
+        t0 = time.time()
         dataset["text_language_detect"] = preprocess_text(
-            dataset["original"],
+            dataset[target_column],
             lower=False,
             remove_accents=False,
             remove_urls=True,
@@ -255,6 +263,7 @@ def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int =
             replace_newline_characters=True,
             remove_punctuation=False,
         )
+        print(f"Preprocessing text_language_detect took {time.time() - t0:.2f} seconds")
     print("Done.")
     print("")
 
@@ -337,7 +346,7 @@ def download_USE(
 
 
 @timeit
-def compute_embeddings(df, batch_size: int = 100, max_workers: int = 8):
+def compute_embeddings(df, batch_size: int = 100, max_workers: int = 1):
     """
     Compute embeddings for distance comparison
     Args:
@@ -543,12 +552,13 @@ def semantic_faiss(
     threshold_language: float = 0.715,
     threshold_semantic=0.85,
     remove_matches_same_user: str = None,
+    target_column: str = "original",
 ):
     """Apply end to end 3 delta methodology with faiss
     Args:
         df (pd.DataFrame): dataframe containing some columns :
-            - original: text original
-            - language (optional): language of each text. If not given, language detection is computed in order to detect translation
+            - target_column (default "original"): column containing the text to be analyzed
+            - "language" (optional): language of each text. If not given, language detection is computed in order to detect translation
         min_size_txt (int): minimal size of text in order to apply 3 delta. if texts too short, removing document.
         df_embeddings_use (pd.DataFrame): embeddings dataframe already saved in order not to compute embeddings everytime.
         embeddings_to_save (str): name of pickle to save the embeddings if the user wants to save the embeddings.
@@ -560,7 +570,7 @@ def semantic_faiss(
         df_cluster (pd.DataFrame): initial dataframe 'df' with its cluster of duplicated content associated if it exists.
     """
 
-    df = prepare_dataset(df, min_size_txt=min_size_txt)
+    df = prepare_dataset(df, min_size_txt=min_size_txt, target_column=target_column)
 
     if "language" not in df.columns:
         print("language detection")

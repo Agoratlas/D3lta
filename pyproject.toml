@@ -5,6 +5,9 @@ description = "d3lta package"
 readme = "README.md"
 authors = ["Viginum"]
 
+[tool.poetry.scripts]
+d3lta = "d3lta.cli:main"
+
 [tool.poetry.dependencies]
 python = "^3.10"
 faiss-cpu = "1.9.0.post1"
