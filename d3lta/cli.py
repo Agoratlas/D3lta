@@ -123,8 +123,6 @@ def main():
         text_column=text_column_name,
     )
 
-    df_clusters['cluster'] = df_clusters['cluster'].astype(int)
-
     if 'tagged' in output_filenames:
         tagged_df = input_df.copy()
         tagged_df['cluster'] = df_clusters['cluster']
