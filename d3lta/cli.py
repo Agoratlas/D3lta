@@ -114,6 +114,8 @@ def main():
     
     input_df.index = input_df.index.astype(str)
 
+    input_df[text_column_name] = input_df[text_column_name].fillna('')
+
     matches, df_clusters = semantic_faiss(
         df=input_df,
         min_size_txt=args.min_size_txt,
