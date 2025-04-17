@@ -116,6 +116,8 @@ def main():
 
     input_df[text_column_name] = input_df[text_column_name].fillna('')
 
+    tagged_df = input_df.copy()
+
     matches, df_clusters = semantic_faiss(
         df=input_df,
         min_size_txt=args.min_size_txt,
@@ -126,7 +128,6 @@ def main():
     )
 
     if 'tagged' in output_filenames:
-        tagged_df = input_df.copy()
         tagged_df['cluster'] = df_clusters['cluster']
         tagged_df.to_csv(output_filenames['tagged'], index=False, encoding='utf-8', header=input_has_header)
         print(f'Tagged output saved to {output_filenames["tagged"]}')
