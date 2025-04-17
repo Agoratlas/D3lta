@@ -3,8 +3,11 @@ import sys
 import os
 import pandas as pd
 import collections
+import csv
 
 from .faissd3lta import semantic_faiss
+
+D3LTA_ID_COLUMN = 'd3lta_id'
 
 def export_summary(df_clusters, output_file, text_column_name, top_n_examples=5):
     with open(output_file, 'w', encoding='utf-8') as f:
@@ -32,6 +35,33 @@ def export_summary(df_clusters, output_file, text_column_name, top_n_examples=5)
             f.write('\n')
 
 
+def export_graph(df_clusters, matches, output_file, text_column_name):
+    # Within each cluster, find the most "central" document (based on the total similarity score)
+
+    node_centrality = collections.defaultdict(float)
+    for _, row in matches.iterrows():
+        node_centrality[row['source']] += row['score']
+        node_centrality[row['target']] += row['score']
+        
+    with open(output_file, 'w', encoding='utf-8') as f:
+        graph_csv = csv.DictWriter(f, fieldnames=['source_id', 'source_label', 'target_id', 'target_label'])
+        graph_csv.writeheader()
+        for cluster_value, group in df_clusters.groupby('cluster', sort=True):
+            cluster_id = f'cluster_{cluster_value}'
+            # Find the node with highest node_centrality within the group
+            central_node_id = group.index[group.index.map(node_centrality.get).idxmax()]
+            cluster_label = group.loc[central_node_id, text_column_name]
+            for _, row in group.iterrows():
+                graph_csv.writerow({
+                    'source_id': row[D3LTA_ID_COLUMN],
+                    'source_label': row[text_column_name],
+                    'target_id': cluster_id,
+                    'target_label': cluster_label
+                })
+
+
+
+
 def main():
     """Main entry point for the CLI application."""
     parser = argparse.ArgumentParser(
@@ -53,7 +83,7 @@ def main():
             'Specify the type of output to generate. Available options are:\n'
             '  tagged  - Outputs the provided CSV with an additional column containing the cluster number of each document.\n'
             '  matches - Outputs the list of all detected matches.\n'
-            '  graph   - Outputs a simplified graph representation of documents.\n'
+            '  graph   - Outputs a simplified graph representation of the clusters.\n'
             '  summary - Outputs a summary of the detected clusters, with their size and a few examples.\n'
             '  full    - All of the above. (default)\n'
         )
@@ -104,20 +134,21 @@ def main():
         input_df = pd.read_csv(args.input_file, encoding='utf-8', dtype=str)
         text_column_name = args.column
         if text_column_name not in input_df.columns:
-            parser.error(f'The specified column "{text_column_name}" does not exist in the input file.')
+            raise ValueError(f'The specified column "{text_column_name}" does not exist in the input file.')
     else:
         input_df = pd.read_csv(args.input_file, header=None, encoding='utf-8', dtype=str)
         input_df.columns = [f'col_{i}' for i in range(input_df.shape[1])]
         text_column_name = f'col_{args.column_number}'
         if text_column_name not in input_df.columns:
-            parser.error(f'The input file has columns numbered from 0 to {len(input_df.columns)-1}, but the specified column number {args.column_number} is out of range.')
+            raise ValueError(f'The input file has columns numbered from 0 to {len(input_df.columns)-1}, but the specified column number {args.column_number} is out of range.')
     
-    input_df.index = input_df.index.astype(str)
-
     input_df[text_column_name] = input_df[text_column_name].fillna('')
+    input_df.index = input_df.index.astype(str)
+    if D3LTA_ID_COLUMN in input_df.columns:
+        raise ValueError(f'The input file already contains a column named "{D3LTA_ID_COLUMN}". Please rename or remove it before proceeding.')
+    input_df.insert(0, D3LTA_ID_COLUMN, input_df.index)
 
     tagged_df = input_df.copy()
-
     matches, df_clusters = semantic_faiss(
         df=input_df,
         min_size_txt=args.min_size_txt,
@@ -135,7 +166,7 @@ def main():
         matches.to_csv(output_filenames['matches'], index=False, encoding='utf-8')
         print(f'Matches output saved to {output_filenames["matches"]}')
     if 'graph' in output_filenames:
-        df_clusters.to_csv(output_filenames['graph'], index=False, encoding='utf-8')
+        export_graph(df_clusters, matches, output_filenames['graph'], text_column_name)
         print(f'Graph output saved to {output_filenames["graph"]}')
     if 'summary' in output_filenames:
         export_summary(df_clusters, output_filenames['summary'], text_column_name)
