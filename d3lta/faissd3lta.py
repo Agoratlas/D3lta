@@ -84,6 +84,11 @@ SYMBOL_REGEX = re.compile(
     "]+"
 )
 
+# Some algorithms used in this module have a quadratic complexity
+# and perform poorly on long texts. Limit their size to avoid issues.
+GRAPHEME_SIZE_LIMIT = 1000 # Levenshtein
+SEMANTIC_SIZE_LIMIT = 1000 # USE
+
 def remove_symbols(text):
     return SYMBOL_REGEX.sub(r'', text)
 
@@ -98,6 +103,7 @@ def preprocess_text(
     remove_twitter_cropend=False,
     replace_newline_characters=True,
     remove_punctuation=False,
+    max_output_size=None,
 ):
     """
     clean a list-like of strings, performing all the following treatments by default
@@ -112,6 +118,7 @@ def preprocess_text(
         remove_twitter_cropend (bool, optional): remove Twitter-added "…" character at the end of messages that are too long. Defaults to False.
         replace_newline_characters (bool, optional): replace two commonly found escape characters: \r and \n with '. '. Defaults to True.
         remove_punctuation (bool, optional): remove punctuation from the text, be careful, it will remove # of hashtags too. Defaults to False.
+        max_output_size (int, optional): maximum size of the output string, any extra characters will be truncated. Defaults to None (no limit).
     """
     if s is None:
         s = ""
@@ -168,6 +175,10 @@ def preprocess_text(
             re.sub(r"\s+", " ", re.sub(match_punctuations, " ", msg)).strip()
             for msg in s
         ]
+
+    if max_output_size is not None:
+        s = [msg[:max_output_size] for msg in s]
+    
     if encapsulated:
         return s[0].strip()
     else:
@@ -220,6 +231,7 @@ def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int =
                 remove_twitter_cropend=False,
                 replace_newline_characters=True,
                 remove_punctuation=True,
+                max_output_size=GRAPHEME_SIZE_LIMIT,
             )
         ]
 
@@ -237,7 +249,9 @@ def prepare_dataset(dataset: Union[pd.Series, pd.DataFrame], min_size_txt: int =
             remove_twitter_cropend=False,
             replace_newline_characters=False,
             remove_punctuation=False,
+            max_output_size=SEMANTIC_SIZE_LIMIT,
         )
+
     # text_language_detect is used for fasttext
     # accents are kept as they provide interesting cues to language
     if ("language" not in dataset.columns) or (
