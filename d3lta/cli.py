@@ -6,23 +6,23 @@ import collections
 
 from .faissd3lta import semantic_faiss
 
-def export_summary(df_clusters, output_file, target_column_name, top_n_examples=5):
+def export_summary(df_clusters, output_file, text_column_name, top_n_examples=5):
     with open(output_file, 'w', encoding='utf-8') as f:
         f.write('D3lta analysis report\n')
-        f.write('========================\n\n')
+        f.write('========================\n')
         f.write(f'Total number of clusters:           {df_clusters["cluster"].nunique()}\n')
-        f.write(f'Total number of documents:          {len(df_clusters)}\n\n')
+        f.write(f'Total number of documents:          {len(df_clusters)}\n')
         f.write(f'Documents identified as duplicates: {len(df_clusters[~pd.isna(df_clusters["cluster"])])}\n')
         f.write(f'Largest clusters:\n')
         cluster_cnt = df_clusters['cluster'].value_counts()
         for cluster_id, count in cluster_cnt.head(top_n_examples).items():
             f.write(f'  - Cluster {cluster_id}: {count} documents\n')
-        f.write('========================\n\n')
+        f.write('========================\n')
         for cluster_id, group in df_clusters.groupby('cluster', sort=True):
             f.write(f'Cluster {cluster_id}:\n')
             f.write(f'  Size: {len(group)} documents\n')
 
-            most_present_docs = collections.Counter(group[target_column_name]).most_common(top_n_examples)
+            most_present_docs = collections.Counter(group[text_column_name]).most_common(top_n_examples)
             f.write('  Examples:\n')
             for doc, count in most_present_docs:
                 if count > 1:
@@ -102,14 +102,14 @@ def main():
     input_has_header = (args.column is not None)
     if input_has_header:
         input_df = pd.read_csv(args.input_file, encoding='utf-8', dtype=str)
-        target_column_name = args.column
-        if target_column_name not in input_df.columns:
-            parser.error(f'The specified column "{target_column_name}" does not exist in the input file.')
+        text_column_name = args.column
+        if text_column_name not in input_df.columns:
+            parser.error(f'The specified column "{text_column_name}" does not exist in the input file.')
     else:
         input_df = pd.read_csv(args.input_file, header=None, encoding='utf-8', dtype=str)
         input_df.columns = [f'col_{i}' for i in range(input_df.shape[1])]
-        target_column_name = f'col_{args.column_number}'
-        if target_column_name not in input_df.columns:
+        text_column_name = f'col_{args.column_number}'
+        if text_column_name not in input_df.columns:
             parser.error(f'The input file has columns numbered from 0 to {len(input_df.columns)-1}, but the specified column number {args.column_number} is out of range.')
     
     input_df.index = input_df.index.astype(str)
@@ -120,8 +120,10 @@ def main():
         threshold_grapheme=args.threshold_grapheme,
         threshold_language=args.threshold_language,
         threshold_semantic=args.threshold_semantic,
-        target_column=target_column_name,
+        text_column=text_column_name,
     )
+
+    df_clusters['cluster'] = df_clusters['cluster'].astype(int)
 
     if 'tagged' in output_filenames:
         tagged_df = input_df.copy()
@@ -135,7 +137,7 @@ def main():
         df_clusters.to_csv(output_filenames['graph'], index=False, encoding='utf-8')
         print(f'Graph output saved to {output_filenames["graph"]}')
     if 'summary' in output_filenames:
-        export_summary(df_clusters, output_filenames['summary'], target_column_name)
+        export_summary(df_clusters, output_filenames['summary'], text_column_name)
         print(f'Summary output saved to {output_filenames["summary"]}')
     
     print('Processing completed successfully.')
