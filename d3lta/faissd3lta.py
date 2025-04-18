@@ -18,7 +18,6 @@ from tqdm.contrib.concurrent import thread_map
 from tqdm.auto import trange
 import networkx as nx
 
-
 def timeit(func):
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):
@@ -88,6 +87,11 @@ SYMBOL_REGEX = re.compile(
 # and perform poorly on long texts. Limit their size to avoid issues.
 GRAPHEME_SIZE_LIMIT = 1000 # Levenshtein
 SEMANTIC_SIZE_LIMIT = 1000 # USE
+
+# Use the D3lta install path to avoid polluting the user's directory
+FASTTEXT_MODEL_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)), "lid.176.ftz"
+)
 
 def remove_symbols(text):
     return SYMBOL_REGEX.sub(r'', text)
@@ -304,17 +308,17 @@ def compute_language(
     ), "you need to have a column text_language_detect to detect language"
 
     if fasttext_model is None:
-        if os.path.exists("lid.176.ftz"):
+        if os.path.exists(FASTTEXT_MODEL_PATH):
             print("Loading fastext model from local file...")
-            fasttext_model = fasttext.load_model("lid.176.ftz")
+            fasttext_model = fasttext.load_model(FASTTEXT_MODEL_PATH)
         else:
             print("Downloading fastext model from website and saving locally...")
             r = requests.get(
                 "https://dl.fbaipublicfiles.com/fasttext/supervised-models/lid.176.ftz"
             )
-            with open("lid.176.ftz", "wb") as f:
+            with open(FASTTEXT_MODEL_PATH, "wb") as f:
                 f.write(r.content)
-            fasttext_model = fasttext.load_model("lid.176.ftz")
+            fasttext_model = fasttext.load_model(FASTTEXT_MODEL_PATH)
         print("Done.\n")
 
     def process_chunk_fasttext(text_chunk, threshold=0.5):
