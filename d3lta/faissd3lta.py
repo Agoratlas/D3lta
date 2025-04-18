@@ -18,6 +18,7 @@ from tqdm.contrib.concurrent import thread_map
 from tqdm.auto import trange
 import networkx as nx
 
+
 def timeit(func):
     @wraps(func)
     def timeit_wrapper(*args, **kwargs):

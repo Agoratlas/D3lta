@@ -49,7 +49,7 @@ def export_graph(df_clusters, matches, output_file, text_column_name):
         for cluster_value, group in df_clusters.groupby('cluster', sort=True):
             cluster_id = f'cluster_{cluster_value}'
             # Find the node with highest node_centrality within the group
-            central_node_id = group.index[group.index.map(node_centrality.get).idxmax()]
+            central_node_id = group.index[group.index.to_series().map(node_centrality.get).idxmax()]
             cluster_label = group.loc[central_node_id, text_column_name]
             for _, row in group.iterrows():
                 graph_csv.writerow({
@@ -58,8 +58,6 @@ def export_graph(df_clusters, matches, output_file, text_column_name):
                     'target_id': cluster_id,
                     'target_label': cluster_label
                 })
-
-
 
 
 def main():
