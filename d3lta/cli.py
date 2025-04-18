@@ -134,7 +134,7 @@ def main():
             '            their type (copypasta, rewording, translation).\n'
             '  graph   - Outputs a simplified graph representation of \n'
             '            all clusters.\n'
-            '  summary - Outputs a summary of the detected clusters, with \n',
+            '  summary - Outputs a summary of the detected clusters, with \n'
             '            their size and a few examples for each cluster.\n'
             '  full    - All of the above. (default)\n'
         )
