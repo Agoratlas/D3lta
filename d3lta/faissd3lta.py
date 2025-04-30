@@ -354,14 +354,9 @@ def compute_language(
 def download_USE(
     use_url="https://tfhub.dev/google/universal-sentence-encoder-multilingual-large/3",
 ):
-    if os.path.exists(USE_MODEL_PATH):
-        print("Loading USE model from local file...")
-        use_model = tf.saved_model.load(USE_MODEL_PATH)
-    else:
-        print("Downloading USE model from website and saving locally...")
-        use_model = hub.load(use_url)
-        tf.saved_model.save(use_model, USE_MODEL_PATH)
-        return use_model
+    use_model = hub.load(use_url)
+    tf.saved_model.save(use_model, "use_model_kaggle")
+    return use_model
         
 
 @timeit
