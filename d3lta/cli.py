@@ -154,6 +154,9 @@ def main():
     parser.add_argument('--threshold-semantic', type=float, default=0.85,
                         help='Threshold for semantic similarity in '
                              'rewording detection (default: 0.85).')
+    
+    parser.add_argument('--separator', type=str, default=',',
+                        help='CSV separator character (default: ,).')
 
     args = parser.parse_args()
 
@@ -199,14 +202,14 @@ def main():
 
     input_has_header = args.column is not None
     if input_has_header:
-        input_df = pd.read_csv(args.input_file, encoding='utf-8', dtype=str)
+        input_df = pd.read_csv(args.input_file, encoding='utf-8', dtype=str, sep=args.separator)
         text_column_name = args.column
         if text_column_name not in input_df.columns:
             raise ValueError(f'The specified column "{text_column_name}" '
                              'does not exist in the input file.')
     else:
         input_df = pd.read_csv(args.input_file, header=None,
-                               encoding='utf-8', dtype=str)
+                               encoding='utf-8', dtype=str, sep=args.separator)
         input_df.columns = [f'col_{i}' for i in range(input_df.shape[1])]
         text_column_name = f'col_{args.column_number}'
         if text_column_name not in input_df.columns:
