@@ -17,7 +17,9 @@ networkx = "2.8.8"
 pandas = "2.2.3"
 polyleven = "0.8"
 scipy = "1.12.0"
+tensorflow = "2.18.0"
 tensorflow-hub = "0.16.1"
+tensorflow-text = "2.18.1"
 tqdm = "4.67.1"
 
 [build-system]

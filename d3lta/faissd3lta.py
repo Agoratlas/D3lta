@@ -11,7 +11,9 @@ import numpy as np
 import pandas as pd
 from polyleven import levenshtein
 import requests
+import tensorflow as tf
 import tensorflow_hub as hub
+import tensorflow_text
 from tqdm.contrib.concurrent import thread_map
 from tqdm.auto import trange
 import networkx as nx
@@ -91,6 +93,10 @@ SEMANTIC_SIZE_LIMIT = 1000 # USE
 FASTTEXT_MODEL_PATH = os.path.join(
     os.path.dirname(os.path.abspath(__file__)), "lid.176.ftz"
 )
+USE_MODEL_PATH = os.path.join(
+    os.path.dirname(os.path.abspath(__file__)),
+    "universal-sentence-encoder"
+)
 
 def remove_symbols(text):
     return SYMBOL_REGEX.sub(r'', text)
@@ -163,8 +169,7 @@ def preprocess_text(
         match_hashtags_begin = r"(#\S+ ?)+"
         match_hashtags_end = r"(\S+# ?)+"
         match_hashtags_frontend = f"^({match_hashtags_begin})|^({match_hashtags_end})|({match_hashtags_begin})$|({match_hashtags_end})$"
-        hashtags_regex = re.compile(match_hashtags_frontend)
-        s = [hashtags_regex.sub("", msg).strip() for msg in s]
+        s = [re.sub(match_hashtags_frontend, "", msg).strip() for msg in s]
     if replace_newline_characters:
         match_escapes_regexp = r"(\n|\r)+"
         s = [
@@ -350,6 +355,7 @@ def download_USE(
     use_url="https://tfhub.dev/google/universal-sentence-encoder-multilingual-large/3",
 ):
     use_model = hub.load(use_url)
+    tf.saved_model.save(use_model, "use_model_kaggle")
     return use_model
         
 
