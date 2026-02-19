@@ -126,7 +126,8 @@ def export_graph(df_clusters, matches, output_file, text_column_name, id_column_
         df_clusters (pd.DataFrame): DataFrame containing the clusters.
         matches (pd.DataFrame): DataFrame containing the matches.
         output_file (str): Path to the output file.
-        text_column_name (str): Name of the column containing the text.
+        text_column_name (str): Name of the column containing texts.
+        id_column_name (str): Name of the column containing text IDs.
     """
     node_centrality = collections.defaultdict(float)
     for _, row in matches.iterrows():
