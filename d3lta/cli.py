@@ -7,98 +7,12 @@ from the command line using the `d3lta` command.
 import argparse
 import sys
 import os
-import collections
-import csv
 import pandas as pd
 
 from .faissd3lta import semantic_faiss
+from .utils import export_summary, export_graph
 
 D3LTA_ID_COLUMN = 'd3lta_id'
-
-
-def _export_summary(df_clusters, output_file, text_column_name,
-                    top_n_examples=5):
-    """Export a summary of the clusters to a text file.
-
-    This contains a simplified view with high-level statistics
-    (e.g. number of clusters, number of documents, etc.)
-    and a few examples of documents within each cluster.
-
-    Args:
-        df_clusters (pd.DataFrame): DataFrame containing the clusters.
-        output_file (str): Path to the output file.
-        text_column_name (str): Name of the column containing the text.
-        top_n_examples (int): Number of examples to show for each cluster.
-    """
-    with open(output_file, 'w', encoding='utf-8') as f:
-        n_clusters = df_clusters['cluster'].nunique()
-        n_tagged = len(df_clusters[~pd.isna(df_clusters['cluster'])])
-        f.write('D3lta analysis report\n')
-        f.write('========================\n')
-        f.write(f'Total number of clusters:           {n_clusters}\n')
-        f.write(f'Total number of documents:          {len(df_clusters)}\n')
-        f.write(f'Documents identified as duplicates: {n_tagged}\n')
-        f.write('Largest clusters:\n')
-        cluster_cnt = df_clusters['cluster'].value_counts()
-        for cluster_id, count in cluster_cnt.head(top_n_examples).items():
-            f.write(f'  - Cluster {cluster_id}: {count} documents\n')
-        f.write('========================\n')
-        for cluster_id, group in df_clusters.groupby('cluster', sort=True):
-            f.write(f'Cluster {cluster_id}:\n')
-            f.write(f'  Size: {len(group)} documents\n')
-
-            most_present_docs = collections.Counter(
-                group[text_column_name]
-            ).most_common(top_n_examples)
-
-            f.write('  Examples:\n')
-            for doc, count in most_present_docs:
-                if count > 1:
-                    f.write(f'    - "{doc}" ({count} times)\n')
-                else:
-                    f.write(f'    - "{doc}"\n')
-            f.write('\n')
-
-
-def _export_graph(df_clusters, matches, output_file, text_column_name):
-    """Export a simplified graph representation of the clusters to a CSV file.
-
-    Each cluster is represented as a node, and each document is connected
-    to its cluster. The cluster's label is determined as the most "central"
-    document, i.e. the one with highest total match score.
-
-    Args:
-        df_clusters (pd.DataFrame): DataFrame containing the clusters.
-        matches (pd.DataFrame): DataFrame containing the matches.
-        output_file (str): Path to the output file.
-        text_column_name (str): Name of the column containing the text.
-    """
-    node_centrality = collections.defaultdict(float)
-    for _, row in matches.iterrows():
-        node_centrality[row['source']] += row['score']
-        node_centrality[row['target']] += row['score']
-
-    with open(output_file, 'w', encoding='utf-8') as f:
-        csv_fields = ['source_id', 'source_label', 'target_id', 'target_label']
-        graph_csv = csv.DictWriter(f, fieldnames=csv_fields)
-        graph_csv.writeheader()
-        for cluster_value, group in df_clusters.groupby('cluster', sort=True):
-            cluster_id = f'cluster_{cluster_value}'
-            # Find the node with highest node_centrality within the group
-            central_node_id = max(
-                group.index,
-                key=lambda node_id: node_centrality[node_id]
-            )
-
-            cluster_label = group.loc[central_node_id, text_column_name]
-            for _, row in group.iterrows():
-                graph_csv.writerow({
-                    'source_id': row[D3LTA_ID_COLUMN],
-                    'source_label': row[text_column_name],
-                    'target_id': cluster_id,
-                    'target_label': cluster_label
-                })
-
 
 def main():
     """Run the D3lta CLI command."""
@@ -246,11 +160,11 @@ def main():
                        encoding='utf-8')
         print(f'Matches output saved to {output_filenames["matches"]}')
     if 'graph' in output_filenames:
-        _export_graph(df_clusters, matches, output_filenames['graph'],
-                      text_column_name)
+        export_graph(df_clusters, matches, output_filenames['graph'],
+                      text_column_name, D3LTA_ID_COLUMN)
         print(f'Graph output saved to {output_filenames["graph"]}')
     if 'summary' in output_filenames:
-        _export_summary(df_clusters, output_filenames['summary'],
+        export_summary(df_clusters, output_filenames['summary'],
                         text_column_name)
         print(f'Summary output saved to {output_filenames["summary"]}')
 
