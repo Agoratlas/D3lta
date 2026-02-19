@@ -6,7 +6,7 @@ import pandas as pd
 
 def get_cluster_statistics(df_clusters, text_column_name, top_n_examples=5):
     """
-    Extract structured statistics about clusters from D3LTA results.
+    Extract structured statistics about clusters from D3lta results.
     
     This function separates data extraction from formatting, returning
     raw cluster information that can be used by export_summary() or
